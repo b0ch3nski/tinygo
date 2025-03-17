@@ -430,6 +430,12 @@ func defaultTarget(options *Options) (*TargetSpec, error) {
 			"src/runtime/signal.c")
 	case "windows":
 		spec.GC = "boehm"
+		if options.GOARCH == "386" {
+			// For some reason bdwgc doesn't work on windows/386 since recently,
+			// see: https://github.com/ivmai/bdwgc/issues/736
+			// Disabling bdwgc for now, until this is hopefully fixed.
+			spec.GC = "precise"
+		}
 		spec.Scheduler = "tasks"
 		spec.Linker = "ld.lld"
 		spec.Libc = "mingw-w64"
@@ -468,6 +474,12 @@ func defaultTarget(options *Options) (*TargetSpec, error) {
 		return nil, fmt.Errorf("GOOS=%s but GOARCH is unset. Please set GOARCH to wasm", options.GOOS)
 	default:
 		return nil, fmt.Errorf("unknown GOOS=%s", options.GOOS)
+	}
+
+	if spec.GC == "boehm" {
+		// Add this file only when needed. This fixes a build failure on
+		// Windows.
+		spec.ExtraFiles = append(spec.ExtraFiles, "src/runtime/gc_boehm.c",)
 	}
 
 	// Target triples (which actually have four components, but are called
